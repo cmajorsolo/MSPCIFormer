@@ -1,0 +1,47 @@
+# Core ML and Deep Learning
+torch==2.7.0
+torchvision==0.22.0
+numpy==2.2.6
+pandas==1.5.3
+scikit-learn==1.2.2
+scipy==1.10.1
+
+# Hyperparameter Optimization
+optuna==4.5.0
+
+# Visualization and Plotting
+matplotlib==3.7.0
+seaborn
+
+# Time Series and Data Processing
+tqdm==4.64.1
+pyyaml==6.0.1
+
+# Jupyter/Colab compatibility
+ipython
+jupyter
+notebook
+
+# Additional utilities
+requests==2.32.3
+python-dateutil==2.9.0
+
+# For transformer models (if needed)
+transformers==4.52.3
+tokenizers==0.21.1
+safetensors==0.4.3
+
+# File handling
+openpyxl==3.1.5
+
+# Progress tracking
+tensorboard==2.18.0
+
+# Memory efficient operations
+psutil==6.1.0
+
+# For reproducible results
+joblib==1.4.0
+
+# For RAG
+faiss-cpu==1.9.0

@@ -20,10 +20,10 @@ def main():
                         help='task name, options:[long_term_forecast, mask, short_term_forecast, imputation, classification, anomaly_detection]')
     # required arguments: is_training, model_id, model, data; Change required to False for debugging from this script
     parser.add_argument('--is_training', type=int, required=False, default=1, help='status')
-    parser.add_argument('--model_id', type=str, required=False, default='PatchTST', help='model id')
-    parser.add_argument('--model', type=str, required=False, default='MSPCIFormer',
+    parser.add_argument('--model_id', type=str, required=False, default='TimesNet', help='model id')
+    parser.add_argument('--model', type=str, required=False, default='TimesNet',
                         help='model name, options: '
-                             '[Autoformer, Informer, Transformer, MSGNet, DLinear, TimeXer, MSPCIFormer, PatchTST, iTransformer]')
+                             '[Autoformer, Informer, Transformer, MSGNet, DLinear, TimeXer, TimesNet, MSPCIFormer, PatchTST, iTransformer]')
 
     # data loader
     parser.add_argument('--data', type=str, required=False, default='custom', help='dataset type')

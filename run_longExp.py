@@ -20,10 +20,10 @@ def main():
                         help='task name, options:[long_term_forecast, mask, short_term_forecast, imputation, classification, anomaly_detection]')
     # required arguments: is_training, model_id, model, data; Change required to False for debugging from this script
     parser.add_argument('--is_training', type=int, required=False, default=1, help='status')
-    parser.add_argument('--model_id', type=str, required=False, default='TimesNet', help='model id')
-    parser.add_argument('--model', type=str, required=False, default='TimesNet',
+    parser.add_argument('--model_id', type=str, required=False, default='NBeats', help='model id')
+    parser.add_argument('--model', type=str, required=False, default='NBeats',
                         help='model name, options: '
-                             '[Autoformer, Informer, Transformer, MSGNet, DLinear, TimeXer, TimesNet, MSPCIFormer, PatchTST, iTransformer]')
+                             '[Autoformer, Informer, Transformer, MSGNet, DLinear, TimeXer, TimesNet, NBeats, MSPCIFormer, PatchTST, iTransformer]')
 
     # data loader
     parser.add_argument('--data', type=str, required=False, default='custom', help='dataset type')
@@ -72,6 +72,18 @@ def main():
     parser.add_argument('--conv_channel', type=int, default=32, help='')
     parser.add_argument('--skip_channel', type=int, default=32, help='')
 
+    # NBeats
+    parser.add_argument('--nbeats_type', type=str, default='interpretable', choices=['interpretable', 'generic'], help='NBeats model type')
+    parser.add_argument('--nbeats_trend_blocks', type=int, default='3', help='NBeats trend blocks')
+    parser.add_argument('--nbeats_trend_layers', type=int, default='4', help='NBeats trend layers')
+    parser.add_argument('--nbeats_trend_layer_size', type=int, default='256', help='NBeats trend layer size')
+    parser.add_argument('--nbeats_seasonality_blocks', type=int, default='3', help='NBeats seasonality blocks')
+    parser.add_argument('--nbeats_seasonality_layers', type=int, default='4', help='NBeats seasonality layers')
+    parser.add_argument('--nbeats_seasonality_layer_size', type=int, default='256', help='NBeats seasonality layer size')
+    parser.add_argument('--nbeats_degree_of_polynomial', type=int, default='3', help='NBeats degree of polynomial for seasonality')    
+    parser.add_argument('--nbeats_stacks', type=int, default='1', help='NBeats generic stacks')
+    parser.add_argument('--nbeats_layers', type=int, default='4', help='NBeats generic layers')
+    parser.add_argument('--nbeats_layer_size', type=int, default='256', help='NBeats generic layer size')
 
     # DLinear
     # parser.add_argument('--individual', action='store_true', default=False, help='DLinear: a linear layer for each variate(channel) individually')

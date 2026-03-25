@@ -11,6 +11,7 @@ from models import (
     MSPCIFormer,
     TimeXer,
     TimesNet,
+    NBeats,
 )
 from utils.tools import EarlyStopping, adjust_learning_rate, visual, test_params_flop
 from utils.metrics import metric
@@ -46,11 +47,12 @@ class Exp_Main(Exp_Basic):
             'DLinear': DLinear,
             'MSGNet': MSGNet,
             'Transformer': Transformer,
-            'PatchTST': PatchTST,            
+            'PatchTST': PatchTST,
             'iTransformer': iTransformer,
             'MSPCIFormer': MSPCIFormer,
             'TimeXer': TimeXer,
             'TimesNet': TimesNet,
+            'NBeats': NBeats,
         }
         model = model_dict[self.args.model].Model(self.args).float()
 
@@ -96,7 +98,7 @@ class Exp_Main(Exp_Basic):
                 # encoder - decoder
                 if self.args.use_amp:
                     with torch.cuda.amp.autocast():             
-                        if ('Linear' in self.args.model or 'TST' in self.args.model or 'MSPCIFormer' in self.args.model):
+                        if ('Linear' in self.args.model or 'TST' in self.args.model or 'MSPCIFormer' in self.args.model or self.args.model == 'NBeats'):
                             outputs = self.model(batch_x)
                         else:
                             if self.args.output_attention:
@@ -104,7 +106,7 @@ class Exp_Main(Exp_Basic):
                             else:
                                 outputs = self.model(batch_x, batch_x_mark, dec_inp, batch_y_mark)
                 else:                                       
-                    if ('Linear' in self.args.model or 'TST' in self.args.model or 'MSPCIFormer' in self.args.model):
+                    if ('Linear' in self.args.model or 'TST' in self.args.model or 'MSPCIFormer' in self.args.model or self.args.model == 'NBeats'):
                         outputs = self.model(batch_x)                    
                     else:
                         if self.args.output_attention:
@@ -180,7 +182,7 @@ class Exp_Main(Exp_Basic):
                 # encoder - decoder
                 if self.args.use_amp:
                     with torch.cuda.amp.autocast():         
-                        if ('Linear' in self.args.model or 'TST' in self.args.model or 'MSPCIFormer' in self.args.model):
+                        if ('Linear' in self.args.model or 'TST' in self.args.model or 'MSPCIFormer' in self.args.model or self.args.model == 'NBeats'):
                             outputs = self.model(batch_x)   
                         else:
                             if self.args.output_attention:
@@ -194,7 +196,7 @@ class Exp_Main(Exp_Basic):
                         loss = criterion(outputs, batch_y)
                         train_loss.append(loss.item())
                 else:
-                    if ('Linear' in self.args.model or "TST" in self.args.model or "MSPCIFormer" in self.args.model):
+                    if ('Linear' in self.args.model or "TST" in self.args.model or "MSPCIFormer" in self.args.model or self.args.model == 'NBeats'):
                         outputs = self.model(batch_x)
                     else:
                         if self.args.output_attention: #whether to output attention in ecoder
@@ -297,7 +299,7 @@ class Exp_Main(Exp_Basic):
                     with torch.cuda.amp.autocast():
                         if self.args.model in ['MSPFormerCross', 'MSPFormerCrossV2', 'MSPFormerCrossV3', 'MSPFormerCrossV4']:
                             outputs = self.model(batch_x, rag_chunks=rag_chunks)
-                        elif ('Linear' in self.args.model or "TST" in self.args.model or "MSPCIFormer" in self.args.model):
+                        elif ('Linear' in self.args.model or "TST" in self.args.model or "MSPCIFormer" in self.args.model or self.args.model == 'NBeats'):
                             outputs = self.model(batch_x)
                         else:
                             if self.args.output_attention:
@@ -307,7 +309,7 @@ class Exp_Main(Exp_Basic):
                 else:
                     if self.args.model in ['MSPFormerCross', 'MSPFormerCrossV2', 'MSPFormerCrossV3', 'MSPFormerCrossV4']:
                         outputs = self.model(batch_x, rag_chunks=rag_chunks)
-                    elif ('Linear' in self.args.model or "TST" in self.args.model or "MSPCIFormer" in self.args.model):
+                    elif ('Linear' in self.args.model or "TST" in self.args.model or "MSPCIFormer" in self.args.model or self.args.model == 'NBeats'):
                         outputs = self.model(batch_x)
                     else:
                         if self.args.output_attention:
@@ -420,7 +422,7 @@ class Exp_Main(Exp_Basic):
                 else:
                     if self.args.model in ['MSPFormerCross', 'MSPFormerCrossV2', 'MSPFormerCrossV3', 'MSPFormerCrossV4']:
                         outputs = self.model(batch_x, rag_chunks=rag_chunks)
-                    elif ('Linear' in self.args.model or "TST" in self.args.model or "MSPCIFormer" in self.args.model):
+                    elif ('Linear' in self.args.model or "TST" in self.args.model or "MSPCIFormer" in self.args.model or self.args.model == 'NBeats'):
                         outputs = self.model(batch_x)
                     else:
                         if self.args.output_attention:

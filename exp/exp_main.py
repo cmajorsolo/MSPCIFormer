@@ -10,6 +10,7 @@ from models import (
     iTransformer,
     MSPCIFormer,
     TimeXer,
+    TimesNet,
 )
 from utils.tools import EarlyStopping, adjust_learning_rate, visual, test_params_flop
 from utils.metrics import metric
@@ -49,6 +50,7 @@ class Exp_Main(Exp_Basic):
             'iTransformer': iTransformer,
             'MSPCIFormer': MSPCIFormer,
             'TimeXer': TimeXer,
+            'TimesNet': TimesNet,
         }
         model = model_dict[self.args.model].Model(self.args).float()
 

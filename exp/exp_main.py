@@ -14,7 +14,7 @@ from models import (
     NBeats,
 )
 from utils.tools import EarlyStopping, adjust_learning_rate, visual, test_params_flop
-from utils.metrics import metric
+from utils.metrics import metric, finance_metric
 
 import torch
 import torch.nn as nn
@@ -358,10 +358,32 @@ class Exp_Main(Exp_Basic):
             os.makedirs(folder_path)
 
         mae, mse, rmse, mape, mspe, rse, corr, nd, nrmse = metric(preds, trues)
-        print('nd:{}, nrmse:{}, mse:{}, mae:{}, rse:{}, mape:{}'.format(nd, nrmse,mse, mae, rse, mape))
+        print('nd:{}, nrmse:{}, mse:{}, rmse:{}, mae:{}, rse:{}, mape:{}'.format(nd, nrmse, mse, rmse, mae, rse, mape))
+
+        # Inverse-transform for finance metrics (real price scale)
+        # preds/trues have shape (n_samples, pred_len, n_features) where n_features=1 for MS task.
+        # The scaler was fitted on all columns; pad to full width, inverse-transform, then extract target (last col).
+        n_samples, pred_len, n_features = preds.shape
+        n_scaler_features = test_data.scaler.n_features_in_
+        def _inverse(arr):
+            flat = arr.reshape(-1, n_features)  # (n_samples*pred_len, n_features)
+            if n_features < n_scaler_features:
+                pad = np.zeros((flat.shape[0], n_scaler_features - n_features))
+                flat_padded = np.concatenate([pad, flat], axis=1)  # target is last col
+            else:
+                flat_padded = flat
+            inv = test_data.inverse_transform(flat_padded)
+            return inv[:, -n_features:].reshape(n_samples, pred_len, n_features)
+        preds_inv = _inverse(preds)
+        trues_inv = _inverse(trues)
+        mda, sharpe, max_dd = finance_metric(preds_inv, trues_inv, annualization=365)
+        print('mda:{}, sharpe:{}, max_drawdown:{}'.format(mda, sharpe, max_dd))
+
         f = open("test_result.txt", 'a')
         f.write(setting + "  \n")
-        f.write('nd:{}, nrmse:{}, mse:{}, mae:{}, rse:{}, mape:{}'.format(nd, nrmse,mse, mae, rse, mape))
+        f.write('nd:{}, nrmse:{}, mse:{}, rmse:{}, mae:{}, rse:{}, mape:{}'.format(nd, nrmse, mse, rmse, mae, rse, mape))
+        f.write('\n')
+        f.write('mda:{}, sharpe:{}, max_drawdown:{}'.format(mda, sharpe, max_dd))
         f.write('\n')
         f.write('\n')
         f.close()
@@ -369,7 +391,8 @@ class Exp_Main(Exp_Basic):
         # Ensure all metrics are scalars
         metrics_array = np.array([
             float(mae), float(mse), float(rmse), float(mape),
-            float(mspe), float(rse), float(np.mean(corr))  # Force corr to be scalar
+            float(mspe), float(rse), float(np.mean(corr)),  # Force corr to be scalar
+            float(mda), float(sharpe), float(max_dd)
         ])
         np.save(folder_path + 'metrics.npy', metrics_array)
         np.save(folder_path + 'pred.npy', preds)

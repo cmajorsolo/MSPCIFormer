@@ -341,16 +341,12 @@ class Exp_Main(Exp_Basic):
             exit()
         # print('preds_shape:', len(preds),len(preds[0]),len(preds[1]))
 
-        preds = np.array(preds)
-        trues = np.array(trues)
-        inputx = np.array(inputx)
+        preds = np.concatenate(preds, axis=0)
+        trues = np.concatenate(trues, axis=0)
+        inputx = np.concatenate(inputx, axis=0)
 
         print('preds_shape:', preds.shape)
         print('trues_shape:', trues.shape)
-
-        preds = preds.reshape(-1, preds.shape[-2], preds.shape[-1])
-        trues = trues.reshape(-1, trues.shape[-2], trues.shape[-1])
-        inputx = inputx.reshape(-1, inputx.shape[-2], inputx.shape[-1])
 
         # result save
         folder_path = './results/' + setting + '/'
@@ -398,7 +394,7 @@ class Exp_Main(Exp_Basic):
         np.save(folder_path + 'pred.npy', preds)
         np.save(folder_path + 'true.npy', trues)
         np.save(folder_path + 'x.npy', inputx)
-        return mse, mae
+        return mse, mae, rmse, mape, mspe, rse, nd, nrmse, mda, sharpe, max_dd
 
 
     def predict(self, setting, load=False):

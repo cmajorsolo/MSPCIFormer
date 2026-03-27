@@ -112,7 +112,8 @@ class Dataset_Flight(Dataset):
 class Dataset_Custom(Dataset):
     def __init__(self, root_path, flag='train', size=None,
                  features='S', data_path='ETTh1.csv',
-                 target='OT', scale=True, timeenc=0, freq='h', seasonal_patterns=None):
+                 target='OT', scale=True, timeenc=0, freq='h', seasonal_patterns=None,
+                 wf_borders=None):
         # size [seq_len, label_len, pred_len]
         # info
         if size == None:
@@ -133,6 +134,9 @@ class Dataset_Custom(Dataset):
         self.scale = scale
         self.timeenc = timeenc
         self.freq = freq
+        # wf_borders: optional dict with keys 'train_end', 'val_end', 'test_end' (row indices)
+        # used by walk-forward validation to override the default 70/10/20 split
+        self.wf_borders = wf_borders
 
         self.root_path = root_path
         self.data_path = data_path
@@ -151,11 +155,19 @@ class Dataset_Custom(Dataset):
         cols.remove('date')
         df_raw = df_raw[['date'] + cols + [self.target]]
         # print(cols)
-        num_train = int(len(df_raw) * 0.7)
-        num_test = int(len(df_raw) * 0.2)
-        num_vali = len(df_raw) - num_train - num_test
-        border1s = [0, num_train - self.seq_len, len(df_raw) - num_test - self.seq_len]
-        border2s = [num_train, num_train + num_vali, len(df_raw)]
+        if self.wf_borders is not None:
+            train_end = self.wf_borders['train_end']
+            val_end   = self.wf_borders['val_end']
+            test_end  = self.wf_borders['test_end']
+        else:
+            num_train = int(len(df_raw) * 0.7)
+            num_test  = int(len(df_raw) * 0.2)
+            num_vali  = len(df_raw) - num_train - num_test
+            train_end = num_train
+            val_end   = num_train + num_vali
+            test_end  = len(df_raw)
+        border1s = [0, train_end - self.seq_len, val_end - self.seq_len]
+        border2s = [train_end, val_end, test_end]
         border1 = border1s[self.set_type]
         border2 = border2s[self.set_type]
 

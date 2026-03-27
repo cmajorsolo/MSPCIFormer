@@ -6,6 +6,7 @@ import torch
 from exp.exp_main import Exp_Main
 import random
 import numpy as np
+import pandas as pd
 
 def main():   
     fix_seed = 2025
@@ -20,8 +21,8 @@ def main():
                         help='task name, options:[long_term_forecast, mask, short_term_forecast, imputation, classification, anomaly_detection]')
     # required arguments: is_training, model_id, model, data; Change required to False for debugging from this script
     parser.add_argument('--is_training', type=int, required=False, default=1, help='status')
-    parser.add_argument('--model_id', type=str, required=False, default='MSPCIFormer', help='model id')
-    parser.add_argument('--model', type=str, required=False, default='MSPCIFormer',
+    parser.add_argument('--model_id', type=str, required=False, default='NBeats', help='model id')
+    parser.add_argument('--model', type=str, required=False, default='NBeats',
                         help='model name, options: '
                              '[Autoformer, Informer, Transformer, MSGNet, DLinear, TimeXer, TimesNet, NBeats, MSPCIFormer, PatchTST, iTransformer]')
 
@@ -153,6 +154,11 @@ def main():
     parser.add_argument('--devices', type=str, default='0,1,2,3', help='device ids of multile gpus')
     parser.add_argument('--test_flop', action='store_true', default=False, help='See utils/tools for usage')
 
+    # Walk-forward validation
+    parser.add_argument('--walk_forward', action='store_true', default=True, help='enable walk-forward validation')
+    parser.add_argument('--n_folds', type=int, default=5, help='number of folds for walk-forward validation')
+    parser.add_argument('--fold_size', type=float, default=0.5, help='fraction of total data used as the initial training window; each fold expands by fold_size/n_folds')
+
     args = parser.parse_args()
     args.use_gpu = True if torch.cuda.is_available() and args.use_gpu else False
 
@@ -169,41 +175,90 @@ def main():
 
     if args.is_training:
         start = time.time()
-        for ii in range(args.itr):
-            # setting record of experiments
-            setting = '{}_{}_data{}_feature{}_seql{}_labell{}_predl{}_dmodel{}_nheads{}_elayers{}_dlayers{}_dff{}_fc{}_embed{}_distil{}_{}_iter{}'.format(
-                args.model_id,
-                args.model,
-                args.data,
-                args.features,
-                args.seq_len,
-                args.label_len,
-                args.pred_len,
-                args.d_model,
-                args.n_heads,
-                args.e_layers,
-                args.d_layers,
-                args.d_ff,
-                args.factor,
-                args.embed,
-                args.distil,
-                args.des, ii)
 
-            exp = Exp(args)  # set experiments
-            print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
-            exp.train(setting)
+        if args.walk_forward:
+            # --- Walk-forward validation (expanding window, n_folds folds) ---
+            # Determine total dataset length from the CSV
+            df_raw = pd.read_csv(os.path.join(args.root_path, args.data_path))
+            total_len = len(df_raw)
 
-            print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
-            exp.test(setting)
+            # fold_size fraction controls the initial training window.
+            # Each fold steps forward by (fold_size / n_folds) of total data.
+            # Val is fixed at 10% of total; test is one fold-step.
+            n_folds       = args.n_folds
+            val_size      = int(total_len * 0.10)
+            fold_step     = int(total_len * args.fold_size / n_folds)
+            initial_train = int(total_len * args.fold_size)    # train size for fold 0
 
-            if args.do_predict:
-                print('>>>>>>>predicting : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
-                exp.predict(setting, True)
+            fold_metrics = []
+            metric_names = ['mse', 'mae', 'rmse', 'mape', 'mspe', 'rse', 'nd', 'nrmse', 'mda', 'sharpe', 'max_dd']
 
-            torch.cuda.empty_cache()
+            for fold in range(n_folds):
+                train_end = initial_train + fold * fold_step
+                val_end   = train_end + val_size
+                test_end  = val_end + fold_step
+                test_end  = min(test_end, total_len)   # clamp last fold
+                min_test_rows = args.seq_len + args.pred_len + 1
+                if val_end >= total_len or (test_end - val_end) < min_test_rows:
+                    print(f'Fold {fold}: test window too small ({test_end - val_end} rows, need {min_test_rows}), skipping.')
+                    break
+
+                args.wf_borders = {'train_end': train_end, 'val_end': val_end, 'test_end': test_end}
+
+                setting = '{}_{}_data{}_feature{}_seql{}_labell{}_predl{}_dmodel{}_nheads{}_elayers{}_dlayers{}_dff{}_fc{}_embed{}_distil{}_{}_fold{}'.format(
+                    args.model_id, args.model, args.data, args.features,
+                    args.seq_len, args.label_len, args.pred_len,
+                    args.d_model, args.n_heads, args.e_layers, args.d_layers,
+                    args.d_ff, args.factor, args.embed, args.distil, args.des, fold)
+
+                print(f'\n>>>>>>>Walk-forward fold {fold}/{n_folds-1} | train:[0,{train_end}) val:[{train_end},{val_end}) test:[{val_end},{test_end})<<<<<<')
+                exp = Exp(args)
+                exp.train(setting)
+                results = exp.test(setting)
+                mse, mae, rmse, mape, mspe, rse, nd, nrmse, mda, sharpe, max_dd = results
+                fold_metrics.append([mse, mae, rmse, mape, mspe, rse, nd, nrmse, mda, sharpe, max_dd])
+                torch.cuda.empty_cache()
+
+            # Aggregate across folds
+            fold_metrics = np.array(fold_metrics)  # (n_folds, 11)
+            means = fold_metrics.mean(axis=0)
+            stds  = fold_metrics.std(axis=0)
+            print('\n========== Walk-forward Summary ({} folds) =========='.format(len(fold_metrics)))
+            for name, m, s in zip(metric_names, means, stds):
+                print('  {}: {:.6f} ± {:.6f}'.format(name, m, s))
+            f = open("test_result.txt", 'a')
+            f.write('\n=== Walk-forward Summary ({} folds) ===\n'.format(len(fold_metrics)))
+            for name, m, s in zip(metric_names, means, stds):
+                f.write('  {}: {:.6f} +/- {:.6f}\n'.format(name, m, s))
+            f.write('\n')
+            f.close()
+
+        else:
+            # --- Standard hold-out training ---
+            args.wf_borders = None
+            for ii in range(args.itr):
+                setting = '{}_{}_data{}_feature{}_seql{}_labell{}_predl{}_dmodel{}_nheads{}_elayers{}_dlayers{}_dff{}_fc{}_embed{}_distil{}_{}_iter{}'.format(
+                    args.model_id, args.model, args.data, args.features,
+                    args.seq_len, args.label_len, args.pred_len,
+                    args.d_model, args.n_heads, args.e_layers, args.d_layers,
+                    args.d_ff, args.factor, args.embed, args.distil, args.des, ii)
+
+                exp = Exp(args)
+                print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
+                exp.train(setting)
+
+                print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
+                exp.test(setting)
+
+                if args.do_predict:
+                    print('>>>>>>>predicting : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
+                    exp.predict(setting, True)
+
+                torch.cuda.empty_cache()
+
         end = time.time()
-        used_time = end -start
-        print("time:",used_time)
+        used_time = end - start
+        print("time:", used_time)
         f = open("train_result.txt", 'a')
         f.write('time:{}'.format(used_time))
         f.write('\n')

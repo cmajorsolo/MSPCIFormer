@@ -20,7 +20,8 @@ def data_provider(args, flag):
 
     if flag == 'test':
         shuffle_flag = False
-        drop_last = True
+        # drop_last=False so small test folds (walk-forward) are not silently discarded
+        drop_last = False
         batch_size = args.batch_size
         freq = args.freq
 
@@ -37,6 +38,7 @@ def data_provider(args, flag):
         batch_size = args.batch_size
         freq = args.freq
 
+    wf_borders = getattr(args, 'wf_borders', None)
     data_set = Data(
         root_path=args.root_path,
         data_path=args.data_path,
@@ -46,7 +48,8 @@ def data_provider(args, flag):
         target=args.target,
         timeenc=timeenc,
         freq=freq,
-        seasonal_patterns = args.seasonal_patterns
+        seasonal_patterns=args.seasonal_patterns,
+        wf_borders=wf_borders,
     )
     print(flag, len(data_set))
     data_loader = DataLoader(

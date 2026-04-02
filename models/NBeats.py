@@ -201,25 +201,47 @@ class Model(nn.Module):
         nbeats_type = getattr(configs, 'nbeats_type', 'generic')
 
         if nbeats_type == 'interpretable':
+            trend_blocks          = getattr(configs, 'nbeats_trend_blocks', 3)
+            trend_layers          = getattr(configs, 'nbeats_trend_layers', 4)
+            trend_layer_size      = getattr(configs, 'nbeats_trend_layer_size', 256)
+            degree_of_polynomial  = getattr(configs, 'nbeats_degree_of_polynomial', 3)
+            seasonality_blocks    = getattr(configs, 'nbeats_seasonality_blocks', 3)
+            seasonality_layers    = getattr(configs, 'nbeats_seasonality_layers', 4)
+            seasonality_layer_size= getattr(configs, 'nbeats_seasonality_layer_size', 2048)
+            num_of_harmonics      = getattr(configs, 'nbeats_num_of_harmonics', 1)
+            print(
+                f'[NBeats] type=interpretable | '
+                f'trend_blocks={trend_blocks}, trend_layers={trend_layers}, trend_layer_size={trend_layer_size}, '
+                f'degree_of_polynomial={degree_of_polynomial} | '
+                f'seasonality_blocks={seasonality_blocks}, seasonality_layers={seasonality_layers}, '
+                f'seasonality_layer_size={seasonality_layer_size}, num_of_harmonics={num_of_harmonics}'
+            )
             self.model = _build_interpretable(
                 input_size=configs.seq_len,
                 output_size=configs.pred_len,
-                trend_blocks=getattr(configs, 'nbeats_trend_blocks', 3),
-                trend_layers=getattr(configs, 'nbeats_trend_layers', 4),
-                trend_layer_size=getattr(configs, 'nbeats_trend_layer_size', 256),
-                degree_of_polynomial=getattr(configs, 'nbeats_degree_of_polynomial', 3),
-                seasonality_blocks=getattr(configs, 'nbeats_seasonality_blocks', 3),
-                seasonality_layers=getattr(configs, 'nbeats_seasonality_layers', 4),
-                seasonality_layer_size=getattr(configs, 'nbeats_seasonality_layer_size', 2048),
-                num_of_harmonics=getattr(configs, 'nbeats_num_of_harmonics', 1),
+                trend_blocks=trend_blocks,
+                trend_layers=trend_layers,
+                trend_layer_size=trend_layer_size,
+                degree_of_polynomial=degree_of_polynomial,
+                seasonality_blocks=seasonality_blocks,
+                seasonality_layers=seasonality_layers,
+                seasonality_layer_size=seasonality_layer_size,
+                num_of_harmonics=num_of_harmonics,
             )
         else:
+            stacks     = getattr(configs, 'nbeats_stacks', 30)
+            layers     = getattr(configs, 'nbeats_layers', 4)
+            layer_size = getattr(configs, 'nbeats_layer_size', 512)
+            print(
+                f'[NBeats] type=generic | '
+                f'stacks={stacks}, layers={layers}, layer_size={layer_size}'
+            )
             self.model = _build_generic(
                 input_size=configs.seq_len,
                 output_size=configs.pred_len,
-                stacks=getattr(configs, 'nbeats_stacks', 30),
-                layers=getattr(configs, 'nbeats_layers', 4),
-                layer_size=getattr(configs, 'nbeats_layer_size', 512),
+                stacks=stacks,
+                layers=layers,
+                layer_size=layer_size,
             )
 
     def forward(self, x):

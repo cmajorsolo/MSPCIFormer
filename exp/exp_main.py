@@ -139,6 +139,7 @@ class Exp_Main(Exp_Basic):
         time_now = time.time()
         train_steps = len(train_loader)
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
+        best_vali_loss = np.inf
 
         model_optim = self._select_optimizer()
         criterion = self._select_criterion()
@@ -247,6 +248,8 @@ class Exp_Main(Exp_Basic):
             f.write('\n')
             f.close()
 
+            if vali_loss < best_vali_loss:
+                best_vali_loss = vali_loss
             early_stopping(vali_loss, self.model, path)
             if early_stopping.early_stop:
                 print("Early stopping")
@@ -260,7 +263,7 @@ class Exp_Main(Exp_Basic):
         best_model_path = path + '/' + 'checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))
 
-        return self.model
+        return self.model, best_vali_loss
 
     def test(self, setting, test=0):
         test_data, test_loader = self._get_data(flag='test')

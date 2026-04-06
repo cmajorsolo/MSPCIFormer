@@ -37,7 +37,8 @@ from exp.exp_main import Exp_Main
 
 ALL_MODELS = [
     'DLinear',
-    'NBeats',          # interpretable
+    'NBeats_interpretable',
+    'NBeats_generic',
     'TimesNet',
     'MSGNet',
     'iTransformer',
@@ -150,9 +151,9 @@ def get_base_args():
         # training
         num_workers=0,
         itr=1,
-        train_epochs=10,
+        train_epochs=30,
         batch_size=32,
-        patience=3,
+        patience=5,
         learning_rate=0.005,
         des='comparison',
         loss='MSE',
@@ -180,8 +181,8 @@ def get_base_args():
 
 def load_best_params(model: str, tuning_dir: str = './tuning/results') -> dict:
     """Load best hyperparameters from Optuna tuning results JSON."""
-    # NBeats uses interpretable by default
-    model_key = 'NBeats_interpretable' if model == 'NBeats' else model
+    # NBeats_interpretable / NBeats_generic map directly to their JSON keys
+    model_key = model
     path = os.path.join(tuning_dir, f'{model_key}_best_params.json')
     if not os.path.exists(path):
         print(f'  [warn] No tuning results for {model} at {path}. Using defaults.')
@@ -325,15 +326,44 @@ def main():
     total_len = len(df_raw)
     print(f'Dataset length: {total_len} rows')
 
-    # Always overwrite CSVs for a fresh run
+    # Load existing CSVs, drop rows for models being re-run, then rewrite.
+    # This lets you run one model at a time without losing other models' results.
+    KEY_COLS = ['model', 'pred_len', 'validation_type', 'fold']
+    EPOCH_KEY_COLS = ['model', 'pred_len', 'validation_type', 'fold', 'epoch']
+
+    def _load_existing(path, columns):
+        if os.path.exists(path):
+            try:
+                return pd.read_csv(path)
+            except Exception:
+                pass
+        return pd.DataFrame(columns=columns)
+
+    existing_results = _load_existing(RESULTS_CSV, CSV_COLUMNS)
+    existing_epochs  = _load_existing(EPOCH_TIMES_CSV, EPOCH_TIME_COLUMNS)
+
+    # Drop stale rows for models in this run (identified by model column)
+    labels_being_run = set(cli.models)  # e.g. {'NBeats_interpretable', 'MSPCIFormer'}
+    if not existing_results.empty:
+        existing_results = existing_results[~existing_results['model'].isin(labels_being_run)]
+    if not existing_epochs.empty:
+        existing_epochs = existing_epochs[~existing_epochs['model'].isin(labels_being_run)]
+
+    # Write filtered existing rows back + stream new rows as they come in
     csvfile = open(RESULTS_CSV, 'w', newline='')
     writer = csv.writer(csvfile)
     writer.writerow(CSV_COLUMNS)
+    if not existing_results.empty:
+        for row in existing_results.itertuples(index=False):
+            writer.writerow(list(row))
     csvfile.flush()
 
     epoch_csvfile = open(EPOCH_TIMES_CSV, 'w', newline='')
     epoch_writer = csv.writer(epoch_csvfile)
     epoch_writer.writerow(EPOCH_TIME_COLUMNS)
+    if not existing_epochs.empty:
+        for row in existing_epochs.itertuples(index=False):
+            epoch_writer.writerow(list(row))
     epoch_csvfile.flush()
 
     total_runs = len(cli.models) * len(cli.pred_lens)
@@ -348,9 +378,19 @@ def main():
             print(f'[{run_idx}/{total_runs}] Model={model}  pred_len={pred_len}')
             print(f'{"="*60}')
 
+            # Resolve actual model name and nbeats_type from the model key
+            if model == 'NBeats_interpretable':
+                model_name, nbeats_type = 'NBeats', 'interpretable'
+            elif model == 'NBeats_generic':
+                model_name, nbeats_type = 'NBeats', 'generic'
+            else:
+                model_name, nbeats_type = model, None
+
             # Build args for this (model, pred_len) combination
             args = get_base_args()
-            args.model = model
+            args.model = model_name
+            if nbeats_type:
+                args.nbeats_type = nbeats_type
             args.pred_len = pred_len
             args.train_epochs = cli.train_epochs
             apply_params(args, best_params)
@@ -403,8 +443,8 @@ def main():
 
     csvfile.close()
     epoch_csvfile.close()
-    print(f'\n{"="*60}')
-    print(f'Comparison complete.')
+    print('\n' + '=' * 60)
+    print('Comparison complete.')
     print(f'  Results      : {RESULTS_CSV}')
     print(f'  Epoch times  : {EPOCH_TIMES_CSV}')
     print('=' * 60)

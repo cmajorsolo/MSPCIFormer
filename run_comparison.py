@@ -301,7 +301,7 @@ def main():
                         help='only run hold-out validation (faster)')
     parser.add_argument('--skip_hold_out', action='store_true', default=False,
                         help='only run walk-forward validation')
-    parser.add_argument('--dry_run', action='store_true', default=True,
+    parser.add_argument('--dry_run', action='store_true', default=False,
                         help='quick smoke test: 1 epoch, 1 WF fold, pred_lens=[1]')
     cli = parser.parse_args()
 

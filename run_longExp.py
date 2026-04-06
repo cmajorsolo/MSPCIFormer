@@ -213,9 +213,8 @@ def main():
 
                 print(f'\n>>>>>>>Walk-forward fold {fold}/{n_folds-1} | train:[0,{train_end}) val:[{train_end},{val_end}) test:[{val_end},{test_end})<<<<<<')
                 exp = Exp(args)
-                exp.train(setting)  # returns (model, best_vali_loss); loss unused here
-                results = exp.test(setting)
-                mse, mae, rmse, mape, mspe, rse, nd, nrmse, mda, sharpe, max_dd = results
+                _, _, _, _ = exp.train(setting)
+                mse, mae, rmse, mape, mspe, rse, nd, nrmse, mda, sharpe, max_dd, peak_mb = exp.test(setting)
                 fold_metrics.append([mse, mae, rmse, mape, mspe, rse, nd, nrmse, mda, sharpe, max_dd])
                 torch.cuda.empty_cache()
 
@@ -245,10 +244,10 @@ def main():
 
                 exp = Exp(args)
                 print('>>>>>>>start training : {}>>>>>>>>>>>>>>>>>>>>>>>>>>'.format(setting))
-                exp.train(setting)  # returns (model, best_vali_loss); loss unused here
+                _, _, _, _ = exp.train(setting)
 
                 print('>>>>>>>testing : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))
-                exp.test(setting)
+                exp.test(setting)  # returns 12 values; unused here
 
                 if args.do_predict:
                     print('>>>>>>>predicting : {}<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'.format(setting))

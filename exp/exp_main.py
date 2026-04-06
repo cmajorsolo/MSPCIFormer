@@ -23,6 +23,7 @@ from torch.optim import lr_scheduler
 
 import os
 import time
+import psutil
 
 import warnings
 import matplotlib.pyplot as plt
@@ -140,6 +141,7 @@ class Exp_Main(Exp_Basic):
         train_steps = len(train_loader)
         early_stopping = EarlyStopping(patience=self.args.patience, verbose=True)
         best_vali_loss = np.inf
+        epoch_times = []  # track wall-clock time per epoch
 
         model_optim = self._select_optimizer()
         criterion = self._select_criterion()
@@ -233,7 +235,9 @@ class Exp_Main(Exp_Basic):
                     adjust_learning_rate(model_optim, scheduler, epoch + 1, self.args, printout=False)
                     scheduler.step()
 
-            print("Epoch: {} cost time: {}".format(epoch + 1, time.time() - epoch_time))
+            elapsed = time.time() - epoch_time
+            epoch_times.append(elapsed)
+            print("Epoch: {} cost time: {}".format(epoch + 1, elapsed))
             train_loss = np.average(train_loss)
             vali_loss = self.vali(vali_data, vali_loader, criterion)
             test_loss = self.vali(test_data, test_loader, criterion)
@@ -263,7 +267,8 @@ class Exp_Main(Exp_Basic):
         best_model_path = path + '/' + 'checkpoint.pth'
         self.model.load_state_dict(torch.load(best_model_path))
 
-        return self.model, best_vali_loss
+        avg_time_per_epoch = float(np.mean(epoch_times)) if epoch_times else 0.0
+        return self.model, best_vali_loss, avg_time_per_epoch, epoch_times
 
     def test(self, setting, test=0):
         test_data, test_loader = self._get_data(flag='test')
@@ -277,6 +282,12 @@ class Exp_Main(Exp_Basic):
         folder_path = './test_results/' + setting + '/'
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
+
+        # Memory tracking: reset GPU peak counter; record CPU baseline
+        if torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats()
+        _process = psutil.Process()
+        _mem_baseline_mb = _process.memory_info().rss / 1024 / 1024
 
         self.model.eval()
         with torch.no_grad():
@@ -378,6 +389,13 @@ class Exp_Main(Exp_Basic):
         mda, sharpe, max_dd = finance_metric(preds_inv, trues_inv, annualization=365)
         print('mda:{}, sharpe:{}, max_drawdown:{}'.format(mda, sharpe, max_dd))
 
+        # Peak memory used during inference
+        if torch.cuda.is_available():
+            peak_memory_mb = torch.cuda.max_memory_allocated() / 1024 / 1024
+        else:
+            peak_memory_mb = _process.memory_info().rss / 1024 / 1024 - _mem_baseline_mb
+        print('peak_memory_mb:{:.2f}'.format(peak_memory_mb))
+
         f = open("test_result.txt", 'a')
         f.write(setting + "  \n")
         f.write('nd:{}, nrmse:{}, mse:{}, rmse:{}, mae:{}, rse:{}, mape:{}'.format(nd, nrmse, mse, rmse, mae, rse, mape))
@@ -397,7 +415,7 @@ class Exp_Main(Exp_Basic):
         np.save(folder_path + 'pred.npy', preds)
         np.save(folder_path + 'true.npy', trues)
         np.save(folder_path + 'x.npy', inputx)
-        return mse, mae, rmse, mape, mspe, rse, nd, nrmse, mda, sharpe, max_dd
+        return mse, mae, rmse, mape, mspe, rse, nd, nrmse, mda, sharpe, max_dd, peak_memory_mb
 
 
     def predict(self, setting, load=False):

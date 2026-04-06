@@ -290,8 +290,6 @@ def main():
                         help='models to compare')
     parser.add_argument('--pred_lens', type=int, nargs='+', default=DEFAULT_PRED_LENS,
                         help='prediction horizons to evaluate')
-    parser.add_argument('--train_epochs', type=int, default=10,
-                        help='epochs per run')
     parser.add_argument('--n_folds', type=int, default=5,
                         help='walk-forward folds')
     parser.add_argument('--fold_size', type=float, default=0.5,

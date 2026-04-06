@@ -151,7 +151,7 @@ def get_base_args():
         # training
         num_workers=0,
         itr=1,
-        train_epochs=30,
+        train_epochs=35,
         batch_size=32,
         patience=5,
         learning_rate=0.005,
@@ -290,6 +290,8 @@ def main():
                         help='models to compare')
     parser.add_argument('--pred_lens', type=int, nargs='+', default=DEFAULT_PRED_LENS,
                         help='prediction horizons to evaluate')
+    parser.add_argument('--train_epochs', type=int, default=35,
+                        help='epochs per run')
     parser.add_argument('--n_folds', type=int, default=5,
                         help='walk-forward folds')
     parser.add_argument('--fold_size', type=float, default=0.5,

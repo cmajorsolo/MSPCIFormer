@@ -289,6 +289,12 @@ class Exp_Main(Exp_Basic):
         _process = psutil.Process()
         _mem_baseline_mb = _process.memory_info().rss / 1024 / 1024
 
+        # Inference latency tracking
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+        _infer_start = time.time()
+        _n_samples = 0
+
         self.model.eval()
         with torch.no_grad():
             for i, batch_data in enumerate(test_loader):
@@ -344,6 +350,7 @@ class Exp_Main(Exp_Basic):
                 preds.append(pred)
                 trues.append(true)
                 inputx.append(batch_x.detach().cpu().numpy())
+                _n_samples += pred.shape[0]
                 if i % 10 == 0:
                     input = batch_x.detach().cpu().numpy()
                     gt = np.concatenate((input[0, :, -1], true[0, :, -1]), axis=0)
@@ -391,16 +398,25 @@ class Exp_Main(Exp_Basic):
 
         # Peak memory used during inference
         if torch.cuda.is_available():
+            torch.cuda.synchronize()
             peak_memory_mb = torch.cuda.max_memory_allocated() / 1024 / 1024
         else:
             peak_memory_mb = _process.memory_info().rss / 1024 / 1024 - _mem_baseline_mb
-        print('peak_memory_mb:{:.2f}'.format(peak_memory_mb))
+
+        # Inference latency
+        _infer_total_s = time.time() - _infer_start
+        latency_ms_per_sample = (_infer_total_s / _n_samples * 1000) if _n_samples > 0 else 0.0
+        print('peak_memory_mb:{:.2f}  infer_total_s:{:.4f}  latency_ms/sample:{:.4f}'.format(
+            peak_memory_mb, _infer_total_s, latency_ms_per_sample))
 
         f = open("test_result.txt", 'a')
         f.write(setting + "  \n")
         f.write('nd:{}, nrmse:{}, mse:{}, rmse:{}, mae:{}, rse:{}, mape:{}'.format(nd, nrmse, mse, rmse, mae, rse, mape))
         f.write('\n')
         f.write('mda:{}, sharpe:{}, max_drawdown:{}'.format(mda, sharpe, max_dd))
+        f.write('\n')
+        f.write('peak_memory_mb:{:.2f}, infer_total_s:{:.4f}, latency_ms_per_sample:{:.4f}'.format(
+            peak_memory_mb, _infer_total_s, latency_ms_per_sample))
         f.write('\n')
         f.write('\n')
         f.close()
@@ -415,7 +431,7 @@ class Exp_Main(Exp_Basic):
         np.save(folder_path + 'pred.npy', preds)
         np.save(folder_path + 'true.npy', trues)
         np.save(folder_path + 'x.npy', inputx)
-        return mse, mae, rmse, mape, mspe, rse, nd, nrmse, mda, sharpe, max_dd, peak_memory_mb
+        return mse, mae, rmse, mape, mspe, rse, nd, nrmse, mda, sharpe, max_dd, peak_memory_mb, latency_ms_per_sample
 
 
     def predict(self, setting, load=False):

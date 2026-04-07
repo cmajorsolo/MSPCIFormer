@@ -56,7 +56,7 @@ CSV_COLUMNS = [
     'model', 'pred_len', 'validation_type', 'fold',
     'mse', 'mae', 'rmse', 'mape', 'mspe', 'rse', 'nd', 'nrmse',
     'mda', 'sharpe', 'max_drawdown',
-    'avg_time_per_epoch_s', 'peak_memory_mb',
+    'avg_time_per_epoch_s', 'peak_memory_mb', 'latency_ms_per_sample',
 ]
 
 EPOCH_TIME_COLUMNS = ['model', 'pred_len', 'validation_type', 'fold', 'epoch', 'time_s']
@@ -216,7 +216,7 @@ def run_single(args, setting: str, epoch_writer, epoch_csvfile,
         epoch_writer.writerow([model, pred_len, validation_type, fold, epoch_idx + 1, round(t, 4)])
     epoch_csvfile.flush()
 
-    mse, mae, rmse, mape, mspe, rse, nd, nrmse, mda, sharpe, max_dd, peak_memory_mb = exp.test(setting)
+    mse, mae, rmse, mape, mspe, rse, nd, nrmse, mda, sharpe, max_dd, peak_memory_mb, latency_ms = exp.test(setting)
     torch.cuda.empty_cache()
     return {
         'mse': float(mse),
@@ -232,6 +232,7 @@ def run_single(args, setting: str, epoch_writer, epoch_csvfile,
         'max_drawdown': float(max_dd),
         'avg_time_per_epoch_s': float(avg_time_per_epoch),
         'peak_memory_mb': float(peak_memory_mb),
+        'latency_ms_per_sample': float(latency_ms),
     }
 
 
@@ -328,9 +329,6 @@ def main():
 
     # Load existing CSVs, drop rows for models being re-run, then rewrite.
     # This lets you run one model at a time without losing other models' results.
-    KEY_COLS = ['model', 'pred_len', 'validation_type', 'fold']
-    EPOCH_KEY_COLS = ['model', 'pred_len', 'validation_type', 'fold', 'epoch']
-
     def _load_existing(path, columns):
         if os.path.exists(path):
             try:

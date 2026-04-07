@@ -297,7 +297,7 @@ def make_objective(base_args, model_key, tune_model_name):
 
         try:
             exp = Exp_Main(args)
-            _, best_vali_loss = exp.train(setting)
+            _, best_vali_loss, _, _ = exp.train(setting)
         except Exception as e:
             print(f'Trial {trial.number} failed: {e}')
             raise optuna.exceptions.TrialPruned()

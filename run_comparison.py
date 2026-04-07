@@ -37,6 +37,7 @@ from exp.exp_main import Exp_Main
 
 ALL_MODELS = [
     'DLinear',
+    'LSTM',
     'NBeats_interpretable',
     'NBeats_generic',
     'TimesNet',
@@ -126,6 +127,9 @@ def get_base_args():
         propalpha=0.3,
         conv_channel=32,
         skip_channel=32,
+        # LSTM
+        bidirectional=False,
+        use_additional_layers=False,
         # NBeats
         nbeats_type='interpretable',
         nbeats_trend_blocks=3,
@@ -383,6 +387,7 @@ def main():
                 model_name, nbeats_type = 'NBeats', 'generic'
             else:
                 model_name, nbeats_type = model, None
+            # LSTM is registered as 'LSTM' in the model dict
 
             # Build args for this (model, pred_len) combination
             args = get_base_args()

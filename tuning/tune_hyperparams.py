@@ -94,6 +94,9 @@ def get_base_args():
         propalpha=0.3,
         conv_channel=32,
         skip_channel=32,
+        # LSTM
+        bidirectional=False,
+        use_additional_layers=False,
         # NBeats
         nbeats_type='interpretable',
         nbeats_trend_blocks=3,
@@ -228,6 +231,11 @@ MODEL_SPACES = {
         'nbeats_layers':     ('int',         2, 6),
         'nbeats_layer_size': ('categorical', [64, 128, 256, 512]),
     },
+    'LSTM': {
+        **SHARED_SPACE,
+        'd_model':  ('categorical', [32, 64, 128, 256]),
+        'e_layers': ('int',         1, 4),
+    },
 }
 
 
@@ -311,9 +319,9 @@ def make_objective(base_args, model_key, tune_model_name):
 
 def main():
     parser = argparse.ArgumentParser(description='Optuna hyperparameter tuning')
-    parser.add_argument('--model', type=str, default='DLinear',
+    parser.add_argument('--model', type=str, default='LSTM',
                         choices=['MSPCIFormer', 'TimeXer', 'MSGNet', 'TimesNet',
-                                 'NBeats', 'iTransformer', 'DLinear'],
+                                 'NBeats', 'iTransformer', 'DLinear', 'LSTM'],
                         help='model to tune')
     parser.add_argument('--nbeats_type', type=str, default='interpretable',
                         choices=['interpretable', 'generic'],

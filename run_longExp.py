@@ -24,7 +24,7 @@ def main():
     parser.add_argument('--model_id', type=str, required=False, default='NBeats', help='model id')
     parser.add_argument('--model', type=str, required=False, default='NBeats',
                         help='model name, options: '
-                             '[Autoformer, Informer, Transformer, MSGNet, DLinear, TimeXer, TimesNet, NBeats, MSPCIFormer, PatchTST, iTransformer]')
+                             '[Autoformer, Informer, Transformer, MSGNet, DLinear, TimeXer, TimesNet, NBeats, MSPCIFormer, PatchTST, iTransformer, LSTM]')
 
     # data loader
     parser.add_argument('--data', type=str, required=False, default='custom', help='dataset type')

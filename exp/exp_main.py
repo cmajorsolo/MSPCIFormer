@@ -12,6 +12,7 @@ from models import (
     TimeXer,
     TimesNet,
     NBeats,
+    LSTMModel,
 )
 from utils.tools import EarlyStopping, adjust_learning_rate, visual, test_params_flop
 from utils.metrics import metric, finance_metric
@@ -54,6 +55,7 @@ class Exp_Main(Exp_Basic):
             'TimeXer': TimeXer,
             'TimesNet': TimesNet,
             'NBeats': NBeats,
+            'LSTM': LSTMModel,
         }
         model = model_dict[self.args.model].Model(self.args).float()
 

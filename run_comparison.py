@@ -7,10 +7,13 @@ using best hyperparameters from Optuna tuning results.
 Runs both hold-out (70/10/20) and walk-forward (expanding window) validation.
 Tracks training time per epoch and peak memory usage.
 
-Results saved to: comparison/comparison_results.csv
+Results saved to: comparison/comparison_results_{target}.csv
 
 Usage:
     python run_comparison.py
+    python run_comparison.py --target ada_close
+    python run_comparison.py --target btc_close
+    python run_comparison.py --target eth_close
     python run_comparison.py --pred_lens 1 3 5 7
     python run_comparison.py --models MSPCIFormer DLinear --n_folds 3
     python run_comparison.py --dry_run
@@ -50,8 +53,7 @@ ALL_MODELS = [
 DEFAULT_PRED_LENS = [1, 3, 5, 7, 15, 30]
 
 RESULTS_DIR = './comparison'
-RESULTS_CSV = os.path.join(RESULTS_DIR, 'comparison_results.csv')
-EPOCH_TIMES_CSV = os.path.join(RESULTS_DIR, 'epoch_times.csv')
+DEFAULT_TARGET = 'ada_close'
 
 CSV_COLUMNS = [
     'model', 'pred_len', 'validation_type', 'fold',
@@ -77,7 +79,7 @@ def get_base_args():
         root_path='./data/',
         data_path='crypto_prices_wide.csv',
         features='MS',
-        target='ada_close',
+        target=DEFAULT_TARGET,
         freq='d',
         checkpoints='./comparison/checkpoints/',
         seq_len=5,
@@ -307,6 +309,10 @@ def main():
                         help='only run hold-out validation (faster)')
     parser.add_argument('--skip_hold_out', action='store_true', default=False,
                         help='only run walk-forward validation')
+    parser.add_argument('--target', type=str, default=DEFAULT_TARGET,
+                        choices=['ada_close', 'btc_close', 'eth_close', 'bnb_close',
+                                 'doge_close', 'sol_close', 'trx_close', 'xrp_close'],
+                        help='target column to forecast (default: ada_close)')
     parser.add_argument('--dry_run', action='store_true', default=False,
                         help='quick smoke test: 1 epoch, 1 WF fold, pred_lens=[1]')
     cli = parser.parse_args()
@@ -325,11 +331,16 @@ def main():
     os.makedirs(RESULTS_DIR, exist_ok=True)
     os.makedirs(os.path.join(RESULTS_DIR, 'checkpoints'), exist_ok=True)
 
+    # Per-target CSV paths so multiple assets can coexist
+    results_csv = os.path.join(RESULTS_DIR, f'comparison_results_{cli.target}.csv')
+    epoch_times_csv = os.path.join(RESULTS_DIR, f'epoch_times_{cli.target}.csv')
+
     # Determine total dataset length
     base = get_base_args()
+    base.target = cli.target
     df_raw = pd.read_csv(os.path.join(base.root_path, base.data_path))
     total_len = len(df_raw)
-    print(f'Dataset length: {total_len} rows')
+    print(f'Dataset length: {total_len} rows  |  target: {cli.target}')
 
     # Load existing CSVs, drop rows for models being re-run, then rewrite.
     # This lets you run one model at a time without losing other models' results.
@@ -341,8 +352,8 @@ def main():
                 pass
         return pd.DataFrame(columns=columns)
 
-    existing_results = _load_existing(RESULTS_CSV, CSV_COLUMNS)
-    existing_epochs  = _load_existing(EPOCH_TIMES_CSV, EPOCH_TIME_COLUMNS)
+    existing_results = _load_existing(results_csv, CSV_COLUMNS)
+    existing_epochs  = _load_existing(epoch_times_csv, EPOCH_TIME_COLUMNS)
 
     # Drop stale rows for models in this run (identified by model column)
     labels_being_run = set(cli.models)  # e.g. {'NBeats_interpretable', 'MSPCIFormer'}
@@ -352,7 +363,7 @@ def main():
         existing_epochs = existing_epochs[~existing_epochs['model'].isin(labels_being_run)]
 
     # Write filtered existing rows back + stream new rows as they come in
-    csvfile = open(RESULTS_CSV, 'w', newline='')
+    csvfile = open(results_csv, 'w', newline='')
     writer = csv.writer(csvfile)
     writer.writerow(CSV_COLUMNS)
     if not existing_results.empty:
@@ -360,7 +371,7 @@ def main():
             writer.writerow(list(row))
     csvfile.flush()
 
-    epoch_csvfile = open(EPOCH_TIMES_CSV, 'w', newline='')
+    epoch_csvfile = open(epoch_times_csv, 'w', newline='')
     epoch_writer = csv.writer(epoch_csvfile)
     epoch_writer.writerow(EPOCH_TIME_COLUMNS)
     if not existing_epochs.empty:
@@ -391,6 +402,7 @@ def main():
 
             # Build args for this (model, pred_len) combination
             args = get_base_args()
+            args.target = cli.target
             args.model = model_name
             if nbeats_type:
                 args.nbeats_type = nbeats_type
@@ -448,8 +460,9 @@ def main():
     epoch_csvfile.close()
     print('\n' + '=' * 60)
     print('Comparison complete.')
-    print(f'  Results      : {RESULTS_CSV}')
-    print(f'  Epoch times  : {EPOCH_TIMES_CSV}')
+    print(f'  Target       : {cli.target}')
+    print(f'  Results      : {results_csv}')
+    print(f'  Epoch times  : {epoch_times_csv}')
     print('=' * 60)
 
 

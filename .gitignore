@@ -1,0 +1,12 @@
+# Ignore data folder
+data/
+
+# Other common ignores
+*.log
+__pycache__/
+*.pyc
+
+# Comparison outputs (results, plots, notebooks)
+comparison/
+tuning/results/
+

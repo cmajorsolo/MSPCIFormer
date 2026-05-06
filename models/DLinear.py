@@ -46,7 +46,7 @@ class Model(nn.Module):
         self.pred_len = configs.pred_len
 
         # Decompsition Kernel Size
-        kernel_size = 25
+        kernel_size = configs.kernel_size
         self.decompsition = series_decomp(kernel_size) #return res, moving_mean
         self.individual = configs.individual
         self.channels = configs.enc_in
